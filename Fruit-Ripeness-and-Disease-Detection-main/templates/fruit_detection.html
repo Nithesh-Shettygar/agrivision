@@ -1,0 +1,534 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Advanced Fruit Detection</title>
+    <style>
+        :root {
+            --primary: #4CAF50;
+            --primary-dark: #388E3C;
+            --secondary: #8BC34A;
+            --accent: #FFC107;
+            --text: #333;
+            --light: #f5f5f5;
+            --danger: #F44336;
+            --warning: #FF9800;
+            --info: #2196F3;
+        }
+        
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        
+        body {
+            background-color: #f9f9f9;
+            color: var(--text);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            background-image: url({{url_for('static', filename='image.jpg')}});
+            background-repeat: no-repeat;
+            background-attachment: fixed;
+            background-size: cover;
+            background-position: center;
+        }
+
+        .container {
+            width: 90%;
+            max-width: 1000px;
+            padding: 30px;
+            background-color: rgba(255, 255, 255, 0.95);
+            border-radius: 10px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.15);
+            text-align: center;
+            transition: transform 0.3s;
+        }
+
+        .container:hover {
+            transform: translateY(-5px);
+        }
+
+        h1 {
+            color: var(--primary);
+            margin-bottom: 20px;
+            font-size: 2rem;
+        }
+
+        h2 {
+            color: var(--primary-dark);
+            margin: 20px 0;
+            font-size: 1.5rem;
+        }
+
+        .video-container {
+            width: 100%;
+            max-width: 800px;
+            margin: 0 auto;
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+            position: relative;
+        }
+
+        .video-container::before {
+            content: "IP Camera Feed";
+            display: block;
+            background-color: var(--primary);
+            color: white;
+            padding: 8px;
+            font-weight: bold;
+        }
+
+        #ipcam {
+            width: 100%;
+            height: auto;
+            display: block;
+        }
+
+        .connection-status {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background-color: rgba(0,0,0,0.7);
+            color: white;
+            padding: 5px 10px;
+            border-radius: 4px;
+            font-size: 0.8rem;
+        }
+
+        .detected-info-container {
+            margin-top: 20px;
+            padding: 20px;
+            background-color: var(--light);
+            border-radius: 8px;
+            text-align: left;
+        }
+
+        .detected-objects {
+            margin: 15px 0;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+
+        .detected-objects p {
+            padding: 12px;
+            background-color: white;
+            border-radius: 6px;
+            margin-bottom: 10px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+        }
+
+        .counters-container {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+
+        .counter-card {
+            flex: 1;
+            min-width: 200px;
+            background-color: white;
+            padding: 15px;
+            border-radius: 8px;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+        }
+
+        .counter-card h3 {
+            color: var(--primary-dark);
+            margin-bottom: 10px;
+            border-bottom: 1px solid #eee;
+            padding-bottom: 5px;
+        }
+
+        .counter-row {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 5px;
+        }
+
+        .counter-label {
+            font-weight: 500;
+        }
+
+        .counter-value {
+            font-weight: bold;
+        }
+
+        .ripe-counter {
+            color: var(--primary);
+        }
+
+        .raw-counter {
+            color: var(--warning);
+        }
+
+        .total-counter {
+            color: var(--info);
+            margin-top: 5px;
+            padding-top: 5px;
+            border-top: 1px dashed #ddd;
+        }
+
+        .stats-container {
+            margin-top: 15px;
+            font-size: 0.9rem;
+            color: #666;
+        }
+
+        .back-btn {
+            display: inline-block;
+            margin-top: 15px;
+            padding: 10px 20px;
+            background-color: var(--primary);
+            color: white;
+            text-decoration: none;
+            border-radius: 4px;
+            transition: background-color 0.3s;
+        }
+
+        .back-btn:hover {
+            background-color: var(--primary-dark);
+        }
+
+        @media (max-width: 768px) {
+            .container {
+                width: 95%;
+                padding: 20px;
+            }
+            
+            h1 {
+                font-size: 1.5rem;
+            }
+            
+            h2 {
+                font-size: 1.2rem;
+            }
+            
+            .counter-card {
+                min-width: 100%;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Advanced Fruit Detection</h1>
+        <div class="video-container">
+            <div class="connection-status" id="connection-status">Connecting...</div>
+            <img id="ipcam" src="{{ url_for('video_feed') }}" alt="IP Camera Feed">
+        </div>
+        <div class="detected-info-container">
+            <h2>Real-time Fruit Counting</h2>
+            <div class="counters-container" id="counters-container">
+                <!-- Counters will be dynamically inserted here -->
+            </div>
+            <div class="stats-container">
+                <div>Detection Speed: <span id="detection-speed">0</span> ms</div>
+                <div>Total Fruits Counted: <span id="total-count">0</span></div>
+            </div>
+            <h2>Current Frame Detections</h2>
+            <div class="detected-objects" id="detected-objects">
+                <p>Waiting for detection results...</p>
+            </div>
+            <a href="/" class="back-btn">Back to Home</a>
+        </div>
+    </div>
+
+    <script>
+        // DOM Elements
+        const detectedObjectsElement = document.getElementById('detected-objects');
+        const countersContainer = document.getElementById('counters-container');
+        const ipCamImage = document.getElementById('ipcam');
+        const connectionStatus = document.getElementById('connection-status');
+        const detectionSpeedElement = document.getElementById('detection-speed');
+        const totalCountElement = document.getElementById('total-count');
+
+        // Counting System
+        let fruitCounts = {};
+        let totalFruitsCounted = 0;
+        let frameProcessingTimes = [];
+        let trackingHistory = {};
+        const HISTORY_FRAMES = 5; // Number of frames to keep in tracking history
+
+        // Configuration
+        const DETECTION_INTERVAL = 500; // ms between detections (reduced for better performance)
+        const MIN_CONFIDENCE = 0.7; // Minimum confidence threshold for counting
+        const MIN_IOU = 0.3; // Minimum Intersection-over-Union for duplicate detection
+
+        // Function to update connection status
+        function updateConnectionStatus(connected) {
+            if (connected) {
+                connectionStatus.textContent = "Connected";
+                connectionStatus.style.backgroundColor = "var(--primary)";
+            } else {
+                connectionStatus.textContent = "Disconnected";
+                connectionStatus.style.backgroundColor = "var(--danger)";
+            }
+        }
+
+        // Function to calculate Intersection over Union (IoU) of two bounding boxes
+        function calculateIOU(box1, box2) {
+            const [x1, y1, w1, h1] = box1;
+            const [x2, y2, w2, h2] = box2;
+            
+            const xLeft = Math.max(x1, x2);
+            const yTop = Math.max(y1, y2);
+            const xRight = Math.min(x1 + w1, x2 + w2);
+            const yBottom = Math.min(y1 + h1, y2 + h2);
+            
+            if (xRight < xLeft || yBottom < yTop) return 0;
+            
+            const intersectionArea = (xRight - xLeft) * (yBottom - yTop);
+            const box1Area = w1 * h1;
+            const box2Area = w2 * h2;
+            
+            return intersectionArea / (box1Area + box2Area - intersectionArea);
+        }
+
+        // Function to update the counters display
+        function updateCountersDisplay() {
+            countersContainer.innerHTML = '';
+            
+            // Create counter cards for each fruit type
+            Object.entries(fruitCounts).forEach(([fruitName, counts]) => {
+                const counterCard = document.createElement('div');
+                counterCard.className = 'counter-card';
+                
+                const title = document.createElement('h3');
+                title.textContent = fruitName;
+                
+                const ripeRow = document.createElement('div');
+                ripeRow.className = 'counter-row';
+                ripeRow.innerHTML = `
+                    <span class="counter-label">Ripe:</span>
+                    <span class="counter-value ripe-counter">${counts.ripe || 0}</span>
+                `;
+                
+                const rawRow = document.createElement('div');
+                rawRow.className = 'counter-row';
+                rawRow.innerHTML = `
+                    <span class="counter-label">Raw:</span>
+                    <span class="counter-value raw-counter">${counts.raw || 0}</span>
+                `;
+                
+                const totalRow = document.createElement('div');
+                totalRow.className = 'counter-row total-counter';
+                totalRow.innerHTML = `
+                    <span class="counter-label">Total:</span>
+                    <span class="counter-value">${(counts.ripe || 0) + (counts.raw || 0)}</span>
+                `;
+                
+                counterCard.appendChild(title);
+                counterCard.appendChild(ripeRow);
+                counterCard.appendChild(rawRow);
+                counterCard.appendChild(totalRow);
+                countersContainer.appendChild(counterCard);
+            });
+            
+            // Update total count display
+            totalCountElement.textContent = totalFruitsCounted;
+        }
+
+        // Function to process detection results
+        function processDetections(detections) {
+            const currentFrameIds = new Set();
+            const countedThisFrame = new Set();
+            
+            // Process each detection in the current frame
+            detections.forEach(detection => {
+                const { class: className, bbox, confidence } = detection;
+                
+                // Skip low confidence detections
+                if (confidence < MIN_CONFIDENCE) return;
+                
+                // Parse detection info
+                const [status, fruitName] = className.split(' ');
+                const isRipe = status === 'Ripe';
+                const boxId = `${fruitName}-${bbox[0].toFixed(0)}-${bbox[1].toFixed(0)}`;
+                
+                // Check if this is a new fruit that needs to be counted
+                let shouldCount = true;
+                
+                // Check tracking history for this fruit type
+                if (trackingHistory[fruitName]) {
+                    for (const [trackedId, { box, frames }] of Object.entries(trackingHistory[fruitName])) {
+                        const iou = calculateIOU(bbox, box);
+                        
+                        // If significant overlap with a tracked fruit
+                        if (iou > MIN_IOU) {
+                            shouldCount = false;
+                            
+                            // Update tracking info
+                            trackingHistory[fruitName][trackedId] = {
+                                box: bbox,
+                                frames: frames + 1
+                            };
+                            
+                            currentFrameIds.add(trackedId);
+                            break;
+                        }
+                    }
+                } else {
+                    trackingHistory[fruitName] = {};
+                }
+                
+                // If this is a new detection to count
+                if (shouldCount && !countedThisFrame.has(boxId)) {
+                    // Initialize fruit count if needed
+                    if (!fruitCounts[fruitName]) {
+                        fruitCounts[fruitName] = { ripe: 0, raw: 0 };
+                    }
+                    
+                    // Increment appropriate count
+                    if (isRipe) {
+                        fruitCounts[fruitName].ripe += 1;
+                    } else {
+                        fruitCounts[fruitName].raw += 1;
+                    }
+                    
+                    totalFruitsCounted += 1;
+                    countedThisFrame.add(boxId);
+                    
+                    // Add to tracking history
+                    const trackId = `${fruitName}-${Date.now()}`;
+                    trackingHistory[fruitName][trackId] = {
+                        box: bbox,
+                        frames: 1
+                    };
+                    currentFrameIds.add(trackId);
+                }
+            });
+            
+            // Clean up tracking history (remove fruits not seen in this frame)
+            Object.keys(trackingHistory).forEach(fruitName => {
+                Object.keys(trackingHistory[fruitName]).forEach(trackId => {
+                    if (!currentFrameIds.has(trackId)) {
+                        delete trackingHistory[fruitName][trackId];
+                    }
+                });
+                
+                // Remove empty fruit entries
+                if (Object.keys(trackingHistory[fruitName]).length === 0) {
+                    delete trackingHistory[fruitName];
+                }
+            });
+            
+            // Update the display
+            updateCountersDisplay();
+        }
+
+        // Function to detect objects from the IP camera feed
+        function detectObjects() {
+            const startTime = performance.now();
+            
+            // First check if the image is loaded
+            if (ipCamImage.naturalWidth === 0) {
+                updateConnectionStatus(false);
+                setTimeout(detectObjects, DETECTION_INTERVAL);
+                return;
+            }
+
+            updateConnectionStatus(true);
+            
+            // Create a canvas to capture the current frame
+            const canvas = document.createElement('canvas');
+            canvas.width = ipCamImage.naturalWidth;
+            canvas.height = ipCamImage.naturalHeight;
+            const ctx = canvas.getContext('2d');
+            ctx.drawImage(ipCamImage, 0, 0, canvas.width, canvas.height);
+            const imageData = canvas.toDataURL('image/jpeg');
+
+            // Send image data to the server for object detection
+            fetch('/detect_objects', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ image_data: imageData }),
+            })
+            .then(response => {
+                if (!response.ok) throw new Error('Network response was not ok');
+                return response.json();
+            })
+            .then(data => {
+                // Clear previous detected objects
+                detectedObjectsElement.innerHTML = '';
+
+                if (data.length === 0) {
+                    detectedObjectsElement.innerHTML = '<p>No fruits detected. Try moving closer or adjusting lighting.</p>';
+                    return;
+                }
+
+                // Process the detections
+                processDetections(data);
+                
+                // Display current frame detections
+                data.forEach(detection => {
+                    const { class: className, bbox, confidence } = detection;
+                    const [status, fruitName] = className.split(' ');
+                    const isRipe = status === 'Ripe';
+                    
+                    const paragraph = document.createElement('p');
+                    paragraph.innerHTML = `
+                        <strong>Fruit:</strong> ${fruitName}<br>
+                        <strong>Status:</strong> <span style="color: ${isRipe ? 'var(--primary)' : 'var(--warning)'}">${status}</span><br>
+                        <strong>Confidence:</strong> ${Math.round(confidence * 100)}%<br>
+                        <small>Position: ${Math.round(bbox[0])}px, ${Math.round(bbox[1])}px</small>`;
+                    detectedObjectsElement.appendChild(paragraph);
+                });
+                
+                // Calculate and display processing time
+                const processingTime = performance.now() - startTime;
+                frameProcessingTimes.push(processingTime);
+                
+                // Keep only the last 10 measurements for average
+                if (frameProcessingTimes.length > 10) {
+                    frameProcessingTimes.shift();
+                }
+                
+                const avgProcessingTime = frameProcessingTimes.reduce((a, b) => a + b, 0) / frameProcessingTimes.length;
+                detectionSpeedElement.textContent = avgProcessingTime.toFixed(1);
+            })
+            .catch(error => {
+                console.error('Detection error:', error);
+                updateConnectionStatus(false);
+                detectedObjectsElement.innerHTML = `<p style="color: var(--danger)">Error: ${error.message}. Trying again...</p>`;
+            })
+            .finally(() => {
+                // Continue detecting objects
+                setTimeout(detectObjects, DETECTION_INTERVAL);
+            });
+        }
+
+        // Start detection when the page loads
+        document.addEventListener('DOMContentLoaded', () => {
+            // Add error handling for the IP camera image
+            ipCamImage.onerror = function() {
+                updateConnectionStatus(false);
+                detectedObjectsElement.innerHTML = '<p style="color: var(--danger)">Failed to connect to IP camera. Please check the connection.</p>';
+            };
+
+            // Start detection when the image loads
+            ipCamImage.onload = function() {
+                updateConnectionStatus(true);
+                detectObjects();
+            };
+
+            // If the image is already loaded (cached), start detection immediately
+            if (ipCamImage.complete && ipCamImage.naturalWidth !== 0) {
+                updateConnectionStatus(true);
+                detectObjects();
+            }
+            
+            // Initialize counters display
+            updateCountersDisplay();
+        });
+    </script>
+</body>
+</html>
